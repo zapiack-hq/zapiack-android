@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A soft translucent band, brightest in the middle: the shine that sweeps across the text. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <gradient android:angle="0" android:startColor="#00FFFFFF" android:centerColor="#59FFFFFF" android:endColor="#00FFFFFF" />
+    <corners android:radius="14dp" />
+</shape>

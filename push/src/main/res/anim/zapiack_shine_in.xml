@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Left to right across the whole box, then it stays off to the right until it is shown again. -->
+<translate xmlns:android="http://schemas.android.com/apk/res/android"
+    android:fromXDelta="-100%" android:toXDelta="100%" android:duration="1100"
+    android:fillAfter="true" android:interpolator="@android:anim/accelerate_decelerate_interpolator" />
