@@ -11,6 +11,8 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
+import com.zapiack.push.core.LayoutTree
+import com.zapiack.push.core.Live
 import com.zapiack.push.core.Processing
 import com.zapiack.push.core.PushBlock
 import java.net.HttpURLConnection
@@ -48,13 +50,24 @@ open class ZapiackMessagingService : FirebaseMessagingService() {
             // reaches this method only when the app is in front. Showing it is then the app's choice, so it is shown here.
             val title = message.data["zapiack_title"] ?: message.notification?.title
             val body = message.data["zapiack_body"] ?: message.notification?.body
-            if (title != null && ZapiackPush.hasPermission(context)) show(context, block, title, body)
+            // When it arrived is kept with the data: a per-user timer counts from then, also when it is drawn again at its end.
+            val data = message.data + (RECEIVED_AT to System.currentTimeMillis().toString())
+            if (title != null && ZapiackPush.hasPermission(context)) show(context, block, title, body, data)
 
             ZapiackPush.runInBackground { client.flush() }
             return true
         }
 
-        private fun show(context: Context, block: PushBlock, title: String, body: String?) {
+        private const val RECEIVED_AT = "zapiack_received_at"
+
+        /** Draws a push again from its data: how a live notification shows its ended state when its timer runs out. */
+        internal fun showFromData(context: Context, data: Map<String, String>, ended: Boolean) {
+            val block = PushBlock.fromData(data) ?: return
+            val title = data["zapiack_title"] ?: return
+            if (ZapiackPush.hasPermission(context)) show(context, block, title, data["zapiack_body"], data, ended)
+        }
+
+        private fun show(context: Context, block: PushBlock, title: String, body: String?, data: Map<String, String>, ended: Boolean = false) {
             val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             if (Build.VERSION.SDK_INT >= 26 && manager.getNotificationChannel(CHANNEL_ID) == null) {
                 manager.createNotificationChannel(NotificationChannel(CHANNEL_ID, "Notifications", NotificationManager.IMPORTANCE_DEFAULT))
@@ -68,12 +81,43 @@ open class ZapiackMessagingService : FirebaseMessagingService() {
                 .setAutoCancel(true)
                 .setContentIntent(pending(context, launch, block, null, block.deliveryId.hashCode()))
 
-            block.actions.take(3).forEachIndexed { i, action ->
-                builder.addAction(0, action.title, pending(context, launch, block, action.id, block.deliveryId.hashCode() + i + 1))
+            // A grid layout draws its buttons where they were placed, and they work when tapped; the system's row would repeat them.
+            val layout = LayoutTree.fromData(data)
+            if (layout == null) {
+                block.actions.take(3).forEachIndexed { i, action ->
+                    builder.addAction(0, action.title, pending(context, launch, block, action.id, block.deliveryId.hashCode() + i + 1))
+                }
             }
 
             val style = block.style
-            if (style != null) {
+            val live = Live.fromData(data)
+            val notificationId = block.deliveryId.hashCode()
+            if (layout != null) {
+                val refs = LayoutTree.refs(layout)
+                val thumbnail = if ("i" in refs) style?.thumbnail?.let { download(it) }?.let { StyledNotification.shrink(it) } else null
+                val picture = if ("p" in refs) block.image?.let { download(it) } else null
+                val receivedAt = data[RECEIVED_AT]?.toLongOrNull() ?: System.currentTimeMillis()
+                val content = LayoutNotification.Content(
+                    title = title,
+                    body = body,
+                    live = live,
+                    actions = block.actions.take(3),
+                    thumbnail = thumbnail,
+                    picture = picture,
+                    background = style?.color,
+                    receivedAt = receivedAt,
+                    ended = ended,
+                    actionIntent = { i -> pending(context, launch, block, block.actions[i].id, block.deliveryId.hashCode() + i + 1) },
+                )
+                val endsAt = LayoutNotification.apply(context, builder, layout, content)
+                if (endsAt != null) LiveNotification.scheduleEnd(context, endsAt, notificationId, data)
+            } else if (live.isNotEmpty()) {
+                // A template with live parts: a countdown that ticks by itself, progress, a counter or a badge.
+                val thumbnail = (style?.thumbnail ?: Processing.imageUrl(block))?.let { download(it) }?.let { StyledNotification.shrink(it) }
+                val receivedAt = data[RECEIVED_AT]?.toLongOrNull() ?: System.currentTimeMillis()
+                val endsAt = LiveNotification.apply(context, builder, live, title, body, style?.color, thumbnail, receivedAt, ended)
+                if (endsAt != null) LiveNotification.scheduleEnd(context, endsAt, notificationId, data)
+            } else if (style != null) {
                 // A custom look: the thumbnail (or, failing that, the push's picture) sits beside the text.
                 val thumbnail = (style.thumbnail ?: Processing.imageUrl(block))?.let { download(it) }?.let { StyledNotification.shrink(it) }
                 // Not setLargeIcon: the system would draw the picture a second time, in the header, and squeeze the text.
@@ -84,7 +128,7 @@ open class ZapiackMessagingService : FirebaseMessagingService() {
                 }
             }
 
-            runCatching { NotificationManagerCompat.from(context).notify(block.deliveryId.hashCode(), builder.build()) }
+            runCatching { NotificationManagerCompat.from(context).notify(notificationId, builder.build()) }
                 .onFailure { android.util.Log.w("ZapiackPush", "Could not show the notification: ${it.message}", it) }
         }
 

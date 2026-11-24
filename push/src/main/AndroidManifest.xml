@@ -1,6 +1,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Calls: keeping the microphone and camera going when the app leaves the screen. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
 
     <application>
         <service
@@ -10,5 +15,8 @@
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />
             </intent-filter>
         </service>
+        <service android:name="com.zapiack.calls.CallForegroundService" android:exported="false" android:foregroundServiceType="microphone|camera" />
+        <!-- Draws a live notification once more when its timer ends. Only this library sends it the broadcast. -->
+        <receiver android:name="com.zapiack.push.LiveTimerReceiver" android:exported="false" />
     </application>
 </manifest>

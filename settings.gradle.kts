@@ -14,4 +14,4 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "zapiack-android"
-include(":core", ":push")
+include(":core", ":push", ":realtime")

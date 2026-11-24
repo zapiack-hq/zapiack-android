@@ -1,0 +1,3 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A cell 8 grid columns wide, inside a row. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/zapiack_cell" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="8" android:orientation="vertical" />

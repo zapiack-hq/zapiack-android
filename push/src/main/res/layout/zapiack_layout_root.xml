@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A grid layout notification: the template's background, and its tree of rows and stacks inside. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingStart="4dp" android:paddingEnd="4dp" android:paddingTop="4dp" android:paddingBottom="4dp">
+    <ImageView android:id="@+id/zapiack_live_bg" android:layout_width="match_parent" android:layout_height="match_parent" android:src="@drawable/zapiack_box" android:scaleType="fitXY" android:importantForAccessibility="no" android:visibility="gone" />
+    <FrameLayout android:id="@+id/zapiack_tree" android:layout_width="match_parent" android:layout_height="wrap_content" android:padding="8dp" />
+</FrameLayout>
